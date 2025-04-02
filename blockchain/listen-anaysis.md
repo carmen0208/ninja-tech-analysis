@@ -143,14 +143,15 @@ The system combines on-chain and off-chain data sources for comprehensive price 
 
 **Implementation:**
 ```mermaid
-// From README.md
-subgraph "Rig Agent Kit by Listen"
-    RAK[RIG Agent Kit]
-    RAK_MT[Multi-tenant Stream Manager]
-    RAK_WALLET[Delegated Wallet Manager]
+graph TB
+    subgraph RigAgentKitbyListen
+        RAK[RIG Agent Kit]
+        RAK_MT[Multi-tenant Stream Manager]
+        RAK_WALLET[Delegated Wallet Manager]
+    end
+
     RAK --> RAK_MT
     RAK --> RAK_WALLET
-end
 ```
 
 The system implements a tool-based framework where AI models can interact with the blockchain through predefined actions. The agent can analyze market data, execute trades, and monitor performance through a standardized API. The multi-tenant stream manager allows multiple agents to operate independently while sharing infrastructure resources. The delegated wallet manager enables agents to initiate transactions on behalf of users while maintaining security controls.
