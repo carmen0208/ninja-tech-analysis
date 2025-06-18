@@ -1,10 +1,18 @@
-# Transaction Structure
+# The Transaction Structure and Serialization
 
-## 1 Detailed Definition of the Transaction Structure
+## 1. Detailed Definition of the Transaction Struct
 
-### 1.1 Top-Level Structure
+An Ethereum transaction is essentially a struct containing the following main fields:
 
-In `core/types/transaction.go`:
+- `Nonce`: The transaction sequence number of the sender's account, used to prevent replay attacks.
+- `GasPrice` or `MaxFeePerGas`/`MaxPriorityFeePerGas` (after EIP-1559): The price per unit of gas.
+- `GasLimit`: The maximum amount of gas that can be consumed by this transaction.
+- `To`: The recipient address (empty when creating a contract).
+- `Value`: The amount to transfer (unit: wei).
+- `Data`: Input data when calling a contract; empty for regular transfers.
+- `V, R, S`: Signature fields to ensure the transaction is non-repudiable.
+
+In the go-ethereum code, the transaction struct is defined in `[core/types/transaction.go](https://github.com/ethereum/go-ethereum/blob/master/core/types/transaction.go#L55-L106)`:
 
 ```go
 type Transaction struct {
@@ -212,44 +220,5 @@ func SignTx(tx *Transaction, s Signer, prv *ecdsa.PrivateKey) (*Transaction, err
 - During verification, the public key is recovered from `V, R, S`, and then the sender address is recovered.
 - See `Sender(signer, tx *Transaction)`, which internally uses `crypto.Ecrecover`.
 
-
----
-
-## 2. Transaction Serialization Methods
-
-### 2.1 RLP Encoding
-
-- Ethereum transactions are mainly encoded using RLP (Recursive Length Prefix) for network transmission and storage.
-- `Transaction` implements the `EncodeRLP` and `DecodeRLP` methods.
-- LegacyTx is directly RLP-encoded, while EIP-2718 type transactions (such as EIP-1559, EIP-4844) use the "type prefix + RLP-encoded content" format.
-
-```go
-func (tx *Transaction) EncodeRLP(w io.Writer) error {
-    if tx.Type() == LegacyTxType {
-        return rlp.Encode(w, tx.inner)
-    }
-    // EIP-2718 typed TX envelope
-    buf := encodeBufferPool.Get().(*bytes.Buffer)
-    defer encodeBufferPool.Put(buf)
-    buf.Reset()
-    if err := tx.encodeTyped(buf); err != nil {
-        return err
-    }
-    return rlp.Encode(w, buf.Bytes())
-}
-```
-
-### 2.2 JSON Serialization
-
-- The external RPC interface (such as JSON-RPC) uses JSON format, see `core/types/transaction_marshalling.go`.
-- The struct `txJSON` defines the JSON fields, and `MarshalJSON`/`UnmarshalJSON` implement serialization/deserialization.
-
----
-
-## Summary
-
-- The transaction struct is polymorphic, supporting multiple types (Legacy, EIP-1559, EIP-4844, etc).
-- RLP encoding is used for network and storage, while JSON encoding is used for RPC.
-- Main fields include nonce, gas, to, value, data, signature (v/r/s), etc.
 
 ---

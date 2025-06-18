@@ -1,4 +1,18 @@
+# The Transaction Structure and Serialization
+
 ## 1. 交易结构体的详细定义
+
+以太坊的交易（Transaction）本质上是一个结构体，包含如下主要字段：
+
+- `Nonce`：发送方账户的交易序号，防止重放攻击。
+- `GasPrice` 或 `MaxFeePerGas`/`MaxPriorityFeePerGas`（EIP-1559后）：每单位 gas 的价格。
+- `GasLimit`：本次交易最多能消耗多少 gas。
+- `To`：接收方地址（合约创建时为空）。
+- `Value`：转账金额（单位：wei）。
+- `Data`：调用合约时的输入数据，普通转账为空。
+- `V, R, S`：签名字段，保证交易不可抵赖。
+
+在 go-ethereum 代码中，transaction 的结构体定义在 `[core/types/transaction.go](https://github.com/ethereum/go-ethereum/blob/master/core/types/transaction.go#L55-L106)`：
 
 ### 1.1 顶层结构
 
@@ -210,44 +224,5 @@ func SignTx(tx *Transaction, s Signer, prv *ecdsa.PrivateKey) (*Transaction, err
 - 验证时，从 `V, R, S` 恢复公钥，进而恢复发送者地址。
 - 见 `Sender(signer, tx *Transaction)`，内部用 `crypto.Ecrecover`。
 
-
----
-
-## 2. 交易的序列化方式
-
-### 2.1 RLP 编码
-
-- 以太坊的交易在网络和存储中主要采用 RLP（Recursive Length Prefix）编码。
-- `Transaction` 实现了 `EncodeRLP` 和 `DecodeRLP` 方法。
-- LegacyTx 直接 RLP 编码，EIP-2718 类型交易（如 EIP-1559、EIP-4844）采用“类型前缀+RLP编码内容”格式。
-
-```go
-func (tx *Transaction) EncodeRLP(w io.Writer) error {
-    if tx.Type() == LegacyTxType {
-        return rlp.Encode(w, tx.inner)
-    }
-    // EIP-2718 typed TX envelope
-    buf := encodeBufferPool.Get().(*bytes.Buffer)
-    defer encodeBufferPool.Put(buf)
-    buf.Reset()
-    if err := tx.encodeTyped(buf); err != nil {
-        return err
-    }
-    return rlp.Encode(w, buf.Bytes())
-}
-```
-
-### 2.2 JSON 序列化
-
-- 对外 RPC 接口（如 JSON-RPC）使用 JSON 格式，见 `core/types/transaction_marshalling.go`。
-- 结构体 `txJSON` 定义了 JSON 字段，`MarshalJSON`/`UnmarshalJSON` 实现了序列化/反序列化。
-
----
-
-## 总结
-
-- 交易结构体是多态的，支持多种类型（Legacy、EIP-1559、EIP-4844等）。
-- 网络和存储用 RLP 编码，RPC 用 JSON 编码。
-- 主要字段包括 nonce、gas、to、value、data、签名（v/r/s）等。
 
 ---
